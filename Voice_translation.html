@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>milan.de — Voice Translation</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23213448'/><text x='50' y='72' font-size='55' font-family='serif' font-weight='bold' fill='%2394B4C1' text-anchor='middle'>DE</text></svg>" />
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css"/>
+  
+  <!-- YOUR HEADER/FOOTER CSS -->
+  <link rel="stylesheet" type="text/css" href="headerfooter.css">
+
+  <!-- INLINE CSS FOR THE TRANSLATION LAYOUT -->
+  <style>
+    /* Main Layout */
+    .translation-main {
+      flex: 1;
+      padding: 3rem 2rem;
+      background-color: var(--cream);
+      display: flex;
+      justify-content: center;
+    }
+
+    .translation-wrapper {
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    /* Voice Controls Bar */
+    .voice-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      padding: 1.2rem 1.5rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 12px var(--shadow);
+      flex-wrap: wrap;
+    }
+
+    .btn-mic {
+      background-color: var(--navy);
+      color: var(--cream);
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      padding: 0.8rem 2rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      flex: 1;
+      max-width: 300px;
+    }
+
+    .btn-mic:hover {
+      background-color: var(--steel);
+    }
+
+    .btn-mic.holding {
+      background-color: #8b0000;
+      animation: pulse-red 1.5s infinite;
+    }
+
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(139, 0, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(139, 0, 0, 0); }
+    }
+
+    /* Visualizer */
+    .visualizer-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      background: var(--navy);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+
+    .visualizer-wrapper.active {
+      opacity: 1;
+      box-shadow: 0 0 10px rgba(148, 180, 193, 0.4);
+    }
+
+    canvas#visualizer {
+      width: 100px;
+      height: 35px;
+      display: block;
+    }
+
+    .amp-text {
+      font-family: 'Crimson Pro', serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--sky);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    /* Status Pill */
+    .status-pill {
+      font-family: 'Crimson Pro', serif;
+      font-size: 1rem;
+      padding: 0.5rem 1.2rem;
+      border-radius: 20px;
+      background: rgba(33, 52, 72, 0.05);
+      color: var(--steel);
+      font-weight: 600;
+      border: 1px solid var(--border);
+      min-width: 110px;
+      text-align: center;
+    }
+
+    .status-pill.live {
+      background: rgba(34, 139, 34, 0.1);
+      color: #1e7e34;
+      border-color: #1e7e34;
+    }
+
+    .status-pill.error {
+      background: rgba(220, 53, 69, 0.1);
+      color: #c5221f;
+      border-color: #c5221f;
+    }
+
+    /* Translation Columns */
+    .translation-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .translation-box {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px var(--shadow);
+      overflow: hidden;
+      height: 500px; /* Fixed height for scrollable streams */
+    }
+
+    .box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--navy);
+      color: var(--cream);
+    }
+
+    .box-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .lang-tag {
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.8rem;
+      font-weight: bold;
+      background: var(--sky);
+      color: var(--navy);
+      padding: 0.2rem 0.6rem;
+      border-radius: 3px;
+    }
+
+    /* Streams */
+    .stream-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      background: #fafafa;
+    }
+
+    .empty-hint {
+      color: var(--steel);
+      font-family: 'Crimson Pro', serif;
+      font-size: 1.1rem;
+      text-align: center;
+      margin-top: 3rem;
+      font-style: italic;
+      opacity: 0.7;
+    }
+
+    /* Bubbles */
+    .bubble-wrapper {
+      position: relative;
+      background: #fff;
+      padding: 1rem 2.5rem 1rem 1.2rem;
+      border-left: 4px solid var(--navy);
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      font-family: 'Crimson Pro', serif;
+      font-size: 1.15rem;
+      color: var(--navy);
+      animation: slide-in 0.2s ease-out;
+    }
+
+    .bubble-wrapper.en {
+      border-left-color: var(--steel);
+    }
+
+    .bubble-wrapper.interim {
+      border-left-style: dashed;
+      opacity: 0.7;
+      font-style: italic;
+    }
+
+    .bubble-wrapper .ts {
+      display: block;
+      font-family: sans-serif;
+      font-size: 0.7rem;
+      color: #999;
+      margin-top: 0.5rem;
+    }
+
+    .btn-del {
+      position: absolute;
+      top: 0.8rem;
+      right: 0.8rem;
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+
+    .btn-del:hover {
+      color: #c5221f;
+    }
+
+    /* Input & Save Bars */
+    .manual-input-bar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .manual-input-bar input {
+      flex: 1;
+      padding: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: 'Crimson Pro', serif;
+      font-size: 1.1rem;
+      outline: none;
+      color: var(--navy);
+    }
+
+    .manual-input-bar input:focus {
+      border-color: var(--steel);
+    }
+
+    .save-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem;
+      background: #fff;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Buttons */
+    .btn-save {
+      background-color: var(--navy);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Crimson Pro', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-save:hover { background-color: var(--steel); }
+
+    .btn-clear {
+      background: none;
+      border: none;
+      color: #c5221f;
+      cursor: pointer;
+      font-family: 'Crimson Pro', serif;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .btn-clear:hover { text-decoration: underline; }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .translation-columns {
+        grid-template-columns: 1fr;
+      }
+      .translation-box {
+        height: 400px;
+      }
+      .voice-controls {
+        flex-direction: column;
+      }
+      .btn-mic {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER (Uses headerfooter.css classes) -->
+<header>
+  <div class="header-brand">
+    <div>
+      <h1 class="brand-title">Deutsche <span>Ubersetzung</span></h1>
+      <h2 class="brand-subtitle">Von Milan Magar</h2>
+    </div>
+    <div class="brand-rule"></div>
+  </div>
+  <nav class="header-nav" aria-label="Hauptnavigation">
+    <a href="index.html">Homepage</a>
+    <a href="translation.html">Translation</a>
+    <a href="Voice_translation.html" class="active">Voice Translation</a>
+    <a href="contact.html">Contact</a>
+    <a href="search.html">Search</a>
+  </nav>
+  <button class="hamburger" onclick="toggleMenu()">Menu</button>
+  <nav class="mobile-menu" id="mobileMenu">
+    <a href="index.html">Homepage</a>
+    <a href="translation.html">Translation</a>
+    <a href="Voice_translation.html" class="active">Voice Translation</a>
+    <a href="contact.html">Contact</a>
+    <a href="search.html">Search</a>
+  </nav>
+</header>
+
+<!-- MAIN CONTENT -->
+<main class="translation-main">
+  <div class="translation-wrapper">
+    
+    <!-- Voice Controls -->
+    <div class="voice-controls">
+      <button id="btnTalk" class="btn-mic" type="button">
+        <span>🎙️ Hold to Talk (or Space)</span>
+      </button>
+      
+      <div class="visualizer-wrapper" id="visWrapper">
+        <canvas id="visualizer"></canvas>
+        <span class="amp-text" id="ampText">0%</span>
+      </div>
+
+      <div id="transStatus" class="status-pill">Idle</div>
+
+      <button id="btnTts" class="btn-save" type="button" style="background:var(--steel);">🔊 TTS: OFF</button>
+    </div>
+
+    <div class="translation-columns">
+
+      <!-- German Column -->
+      <div class="translation-box">
+        <div class="box-header">
+          <span class="box-title">Live German Speech</span>
+          <span class="lang-tag">DE-DE</span>
+        </div>
+        
+        <div class="stream-container" id="deStream">
+          <p class="empty-hint">Hold the button or press Space to start speaking...</p>
+        </div>
+
+        <div class="manual-input-bar">
+          <input type="text" id="textInput" placeholder="Or type German text here..." autocomplete="off">
+          <button id="btnTranslateText" class="btn-save">Translate</button>
+        </div>
+      </div>
+
+      <!-- English Column -->
+      <div class="translation-box">
+        <div class="box-header">
+          <span class="box-title">English Translation</span>
+          <span class="lang-tag">EN</span>
+        </div>
+
+        <div class="stream-container" id="enStream">
+          <p class="empty-hint">Translations will appear here as you speak...</p>
+        </div>
+
+        <div class="save-bar">
+          <button class="btn-clear" id="btnClear">x Clear All</button>
+          <button class="btn-save" id="btnSave">Save History (.txt)</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <p class="footer-thanks">Danke fur Ihren Besuch &nbsp;.&nbsp; Thank you</p>
+  <div class="footer-flags">
+    <div class="flag-wrap">
+      <span class="fi fi-np"></span>
+      <span class="flag-label">Nepal</span>
+    </div>
+    <div class="flag-wrap">
+      <span class="fi fi-de"></span>
+      <span class="flag-label">Deutschland</span>
+    </div>
+  </div>
+  <div class="footer-divider"></div>
+  <p class="footer-copy">
+    &copy; <span id="year"></span> Deutsche Ubersetzung -- Von Milan Magar. Alle Rechte vorbehalten.<br>
+    Designed with love between Nepal &amp; Germany.<br>
+    <a href="contact.html">Kontakt</a> &nbsp;.&nbsp; <a href="#">Datenschutz</a> &nbsp;.&nbsp; <a href="#">Impressum</a>
+  </p>
+</footer>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+  function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+
+  /* ================================================================
+   *  VOICE TRANSLATION LOGIC
+   * ================================================================ */
+  const deStream        = document.getElementById('deStream');
+  const enStream        = document.getElementById('enStream');
+  const btnTalk         = document.getElementById('btnTalk');
+  const btnClear        = document.getElementById('btnClear');
+  const btnSave         = document.getElementById('btnSave');
+  const btnTts          = document.getElementById('btnTts');
+  const transStatus     = document.getElementById('transStatus');
+  const textInput       = document.getElementById('textInput');
+  const btnTranslateText= document.getElementById('btnTranslateText');
+  const visWrapper      = document.getElementById('visWrapper');
+  const canvas          = document.getElementById('visualizer');
+  const ampText         = document.getElementById('ampText');
+
+  const historyData = [];
+  const cache = new Map();
+  let recognition = null;
+  let pttIntent = false;
+  let liveBusy = false;
+  let lastLiveFireAt = 0;
+  let ttsEnabled = false;
+  
+  const live = { de: "", wrapperDe: null, wrapperEn: null, deEl: null, en: null };
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const scrollToBottom = (el) => { el.scrollTop = el.scrollHeight; };
+  const clearEmptyState = (stream) => { const e = stream.querySelector('.empty-hint'); if (e) e.remove(); };
+  const nowTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function updateStatus(text, isError = false) {
+    transStatus.textContent = text;
+    transStatus.className = 'status-pill' + (pttIntent ? ' live' : '') + (isError ? ' error' : '');
+  }
+
+  // ── Punctuation Engine ──
+  const GERMAN_QUESTION_STARTERS = /^(was|wie|wo|wann|warum|wer|welche|welcher|welches|wieso|weshalb|wohin|woher|wieviel|wieviele|welch|bin|bist|ist|sind|seid|war|warst|waren|wart|habe|hast|hat|haben|habt|hatte|hattest|hatten|hattet|kann|kannst|können|könnt|konnte|konntest|konnten|konntet|muss|musst|müssen|müsst|musste|musstest|mussten|musstet|darf|darfst|dürfen|dürft|durfte|durftest|durften|durftet|soll|sollst|sollen|sollt|sollte|solltest|sollten|solltet|will|willst|wollen|wollt|wollte|wolltest|wollten|wolltet|mag|magst|mögen|mögt|möchte|möchtest|möchten|möchtet)$/;
+
+  function ensurePunctuation(text, isGermanSource) {
+    if (!text) return text;
+    let trimmed = text.trim();
+    if (!trimmed) return trimmed;
+    
+    trimmed = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    if (/[.!?…]$/.test(trimmed)) return trimmed;
+
+    const firstWord = trimmed.split(/\s+/)[0].toLowerCase().replace(/[^a-zäöüß]/g, '');
+    const isQuestion = GERMAN_QUESTION_STARTERS.test(firstWord);
+
+    return trimmed + (isQuestion ? "?" : ".");
+  }
+
+  // ── Visualizer (Oscillogram) ──
+  let audioContext = null, analyser = null, dataArray = null, animationId = null, micStream = null;
+
+  async function getMicStream() {
+    if (!micStream) micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return micStream;
+  }
+
+  function setupVisualizer(stream) {
+    if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioContext.state === 'suspended') audioContext.resume();
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    dataArray = new Uint8Array(analyser.fftSize);
+    
+    visWrapper.classList.add('active');
+    drawVisualizer();
+  }
+
+  function drawVisualizer() {
+    if (!analyser) return;
+    animationId = requestAnimationFrame(drawVisualizer);
+    analyser.getByteTimeDomainData(dataArray);
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Match canvas resolution to CSS display size for crisp rendering
+    if (canvas.width !== canvas.clientWidth * 2) {
+        canvas.width = canvas.clientWidth * 2;
+        canvas.height = canvas.clientHeight * 2;
+    }
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    
+    // Amplitude Calculation
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const norm = (dataArray[i] - 128) / 128;
+      sum += norm * norm;
+    }
+    ampText.textContent = Math.round(Math.sqrt(sum / dataArray.length) * 100) + '%';
+
+    // Waveform Drawing
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#94B4C1'; // var(--sky)
+    ctx.beginPath();
+    const sliceWidth = width * 1.0 / dataArray.length;
+    let x = 0;
+    
+    for (let i = 0; i < dataArray.length; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = v * height / 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      x += sliceWidth;
+    }
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+  }
+
+  function stopVisualizer() {
+    if (animationId) cancelAnimationFrame(animationId);
+    animationId = null;
+    visWrapper.classList.remove('active');
+    ampText.textContent = '0%';
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ── UI Builder ──
+  function makeBubble(stream, type, text) {
+    clearEmptyState(stream);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'bubble-wrapper ' + type;
+    
+    const span = document.createElement('span');
+    span.textContent = text;
+    
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-del';
+    btnDel.innerHTML = '✕';
+    btnDel.onclick = () => {
+      const pairId = wrapper.dataset.pairId;
+      if (pairId) {
+        document.querySelectorAll(`[data-pair-id="${pairId}"]`).forEach(el => el.remove());
+        const idx = historyData.findIndex(h => h.pairId === pairId);
+        if (idx > -1) historyData.splice(idx, 1);
+      } else {
+        wrapper.remove();
+      }
+    };
+    
+    wrapper.appendChild(span);
+    wrapper.appendChild(btnDel);
+    stream.appendChild(wrapper);
+    scrollToBottom(stream);
+    return { wrapper, span };
+  }
+
+  function addTimestamp(el) {
+    const ts = document.createElement('span');
+    ts.className = 'ts';
+    ts.textContent = nowTime();
+    el.appendChild(ts);
+  }
+
+  // ── Speech Recognition ──
+  function buildRecognition() {
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'de-DE';
+
+    let handledIndex = 0;
+
+    rec.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) {
+          if (i < handledIndex) continue;
+          handledIndex = i + 1;
+          handleFinalSegment(transcript);
+        } else {
+          interim += transcript;
+        }
+      }
+      if (interim.trim()) handleInterimSegment(interim.trim());
+    };
+
+    rec.onend = () => {
+      if (pttIntent) {
+        try { rec.start(); } catch (e) {}
+      } else if (live.de) {
+        handleFinalSegment(live.de);
+      }
+    };
+
+    return rec;
+  }
+
+  // ── Live Translation Flow ──
+  function handleInterimSegment(text) {
+    if (!text || text === live.de) return;
+    live.de = text;
+    
+    if (!live.wrapperDe) {
+      const d = makeBubble(deStream, 'de interim', text);
+      live.wrapperDe = d.wrapper;
+      live.deEl = d.span;
+      
+      const e = makeBubble(enStream, 'en interim', '…');
+      live.wrapperEn = e.wrapper;
+      live.en = e.span;
+    } else {
+      live.deEl.textContent = text;
+    }
+    scrollToBottom(deStream);
+    
+    fireLiveTranslation();
+  }
+
+  async function fireLiveTranslation() {
+    if (liveBusy) return;
+    liveBusy = true;
+
+    try {
+      while (true) {
+        const text = live.de;
+        if (!text || text.length < 3) break;
+
+        if (Date.now() - lastLiveFireAt < 300) {
+          await sleep(300);
+          continue;
+        }
+
+        lastLiveFireAt = Date.now();
+        updateStatus('Translating...');
+
+        try {
+          const raw = await translateText(text);
+          if (!live.de || !live.en) break;
+
+          live.en.textContent = raw;
+          updateStatus('Live');
+
+          if (live.de === text) break;
+        } catch (e) {
+          updateStatus('Offline', true);
+          break;
+        }
+      }
+    } finally {
+      liveBusy = false;
+    }
+  }
+
+  function handleFinalSegment(rawText) {
+    if (!rawText.trim()) return;
+
+    const finalGerman = ensurePunctuation(rawText, true);
+    const pairId = "p_" + Date.now();
+
+    let deW, deS, enW, enS;
+
+    if (live.deEl) {
+      deW = live.wrapperDe; deS = live.deEl;
+      enW = live.wrapperEn; enS = live.en;
+      deS.textContent = finalGerman;
+      deW.classList.remove('interim');
+      enW.classList.remove('interim');
+    } else {
+      const d = makeBubble(deStream, 'de', finalGerman);
+      deW = d.wrapper; deS = d.span;
+      
+      const e = makeBubble(enStream, 'en', 'Translating...');
+      enW = e.wrapper; enS = e.span;
+    }
+
+    deW.dataset.pairId = pairId;
+    enW.dataset.pairId = pairId;
+    addTimestamp(deW);
+
+    live.de = ""; live.wrapperDe = null; live.wrapperEn = null; live.deEl = null; live.en = null;
+
+    translateText(rawText).then(out => {
+      if (!enS.isConnected) return; 
+      
+      const finalEnglish = ensurePunctuation(out, false);
+      enS.textContent = finalEnglish;
+      addTimestamp(enS);
+      
+      historyData.push({ de: finalGerman, en: finalEnglish, time: nowTime(), pairId });
+      
+      if (ttsEnabled) {
+        const u = new SpeechSynthesisUtterance(finalEnglish);
+        u.lang = 'en-US';
+        window.speechSynthesis.speak(u);
+      }
+    }).catch(() => {
+      if (enS.isConnected) enS.textContent = "Translation failed.";
+    });
+  }
+
+  // ── Translation API ──
+  async function translateText(text) {
+    const key = text.toLowerCase().trim();
+    if (cache.has(key)) return cache.get(key);
+
+    try {
+      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=en&dt=t&q=${encodeURIComponent(text)}`);
+      const data = await res.json();
+      const out = data[0].map(s => s[0]).filter(Boolean).join("").trim();
+      cache.set(key, out);
+      return out;
+    } catch (e) {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=de|en`);
+      const data = await res.json();
+      const out = data.responseData.translatedText;
+      cache.set(key, out);
+      return out;
+    }
+  }
+
+  // ── Controls ──
+  async function startPTT() {
+    if (pttIntent || !SR) return;
+    pttIntent = true;
+    btnTalk.classList.add('holding');
+    btnTalk.innerHTML = '🎙️ Listening...';
+    updateStatus('Listening...');
+
+    try {
+      const stream = await getMicStream();
+      setupVisualizer(stream);
+    } catch (err) {
+      stopPTT();
+      updateStatus('Mic Blocked', true);
+      alert("Microphone access is required. Please allow it in your browser.");
+      return;
+    }
+
+    recognition = buildRecognition();
+    try { recognition.start(); } catch (e) {}
+  }
+
+  function stopPTT() {
+    if (!pttIntent) return;
+    pttIntent = false;
+    btnTalk.classList.remove('holding');
+    btnTalk.innerHTML = '🎙️ Hold to Talk (or Space)';
+    if (recognition) { try { recognition.stop(); } catch (e) {} }
+    stopVisualizer();
+    updateStatus('Idle');
+  }
+
+  btnTalk.addEventListener('pointerdown', (e) => { e.preventDefault(); startPTT(); });
+  btnTalk.addEventListener('pointerup', (e) => { e.preventDefault(); stopPTT(); });
+  window.addEventListener('pointerup', () => { if (pttIntent) stopPTT(); });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !e.repeat && !pttIntent && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault(); startPTT();
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' && pttIntent) {
+      e.preventDefault(); stopPTT();
+    }
+  });
+
+  // ── Manual Input ──
+  btnTranslateText.addEventListener('click', () => {
+    const text = textInput.value.trim();
+    if (text) {
+      handleFinalSegment(text);
+      textInput.value = '';
+    }
+  });
+  textInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') btnTranslateText.click();
+  });
+
+  // ── Save & Clear ──
+  btnSave.addEventListener('click', () => {
+    if (!historyData.length) return alert("No translations to save.");
+    let txt = "German -> English Translation History\n=====================================\n\n";
+    historyData.forEach(h => {
+      txt += `[${h.time}]\nDE: ${h.de}\nEN: ${h.en}\n-------------------------------------\n`;
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
+    a.download = 'translation_history.txt';
+    a.click();
+  });
+
+  btnClear.addEventListener('click', () => {
+    historyData.length = 0;
+    live.de = ""; live.wrapperDe = null; live.wrapperEn = null; live.deEl = null; live.en = null;
+    deStream.innerHTML = '<p class="empty-hint">Hold the button or press Space to start speaking...</p>';
+    enStream.innerHTML = '<p class="empty-hint">Translations will appear here as you speak...</p>';
+  });
+
+  btnTts.addEventListener('click', () => {
+    ttsEnabled = !ttsEnabled;
+    btnTts.textContent = ttsEnabled ? '🔊 TTS: ON' : '🔊 TTS: OFF';
+    btnTts.style.background = ttsEnabled ? '#1e7e34' : 'var(--steel)';
+    if (!ttsEnabled) window.speechSynthesis.cancel();
+  });
+
+</script>
+</body>
+</html>
