@@ -6,19 +6,17 @@
   <title>milan.de — Voice Translation</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23213448'/><text x='50' y='72' font-size='55' font-family='serif' font-weight='bold' fill='%2394B4C1' text-anchor='middle'>DE</text></svg>" />
   
-  <!-- Fonts & Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css"/>
   
-  <!-- YOUR HEADER/FOOTER CSS -->
+  <!-- YOUR EXTERNAL HEADER/FOOTER CSS -->
   <link rel="stylesheet" type="text/css" href="headerfooter.css">
 
-  <!-- INLINE CSS FOR THE TRANSLATION LAYOUT -->
   <style>
-    /* Main Layout */
+    /* Layout */
     .translation-main {
       flex: 1;
-      padding: 3rem 2rem;
+      padding: 2rem;
       background-color: var(--cream);
       display: flex;
       justify-content: center;
@@ -27,6 +25,8 @@
     .translation-wrapper {
       width: 100%;
       max-width: 1200px;
+      display: flex;
+      flex-direction: column;
     }
 
     /* Voice Controls Bar */
@@ -60,6 +60,8 @@
       gap: 0.5rem;
       flex: 1;
       max-width: 300px;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .btn-mic:hover {
@@ -150,7 +152,7 @@
       flex-direction: column;
       box-shadow: 0 4px 12px var(--shadow);
       overflow: hidden;
-      height: 500px; /* Fixed height for scrollable streams */
+      height: 500px;
     }
 
     .box-header {
@@ -189,6 +191,8 @@
       flex-direction: column;
       gap: 1rem;
       background: #fafafa;
+      /* Prevents the browser from auto-scrolling the whole window when content is added */
+      overflow-anchor: none; 
     }
 
     .empty-hint {
@@ -215,15 +219,8 @@
       animation: slide-in 0.2s ease-out;
     }
 
-    .bubble-wrapper.en {
-      border-left-color: var(--steel);
-    }
-
-    .bubble-wrapper.interim {
-      border-left-style: dashed;
-      opacity: 0.7;
-      font-style: italic;
-    }
+    .bubble-wrapper.en { border-left-color: var(--steel); }
+    .bubble-wrapper.interim { border-left-style: dashed; opacity: 0.7; font-style: italic; }
 
     .bubble-wrapper .ts {
       display: block;
@@ -246,9 +243,7 @@
       line-height: 1;
     }
 
-    .btn-del:hover {
-      color: #c5221f;
-    }
+    .btn-del:hover { color: #c5221f; }
 
     /* Input & Save Bars */
     .manual-input-bar {
@@ -270,9 +265,7 @@
       color: var(--navy);
     }
 
-    .manual-input-bar input:focus {
-      border-color: var(--steel);
-    }
+    .manual-input-bar input:focus { border-color: var(--steel); }
 
     .save-bar {
       display: flex;
@@ -282,7 +275,6 @@
       border-top: 1px solid var(--border);
     }
 
-    /* Buttons */
     .btn-save {
       background-color: var(--navy);
       color: white;
@@ -317,24 +309,16 @@
 
     /* Responsive */
     @media (max-width: 860px) {
-      .translation-columns {
-        grid-template-columns: 1fr;
-      }
-      .translation-box {
-        height: 400px;
-      }
-      .voice-controls {
-        flex-direction: column;
-      }
-      .btn-mic {
-        max-width: 100%;
-      }
+      .translation-columns { grid-template-columns: 1fr; }
+      .translation-box { height: 400px; }
+      .voice-controls { flex-direction: column; }
+      .btn-mic { max-width: 100%; }
     }
   </style>
 </head>
 <body>
 
-<!-- HEADER (Uses headerfooter.css classes) -->
+<!-- HEADER -->
 <header>
   <div class="header-brand">
     <div>
@@ -529,7 +513,6 @@
     
     const ctx = canvas.getContext('2d');
     
-    // Match canvas resolution to CSS display size for crisp rendering
     if (canvas.width !== canvas.clientWidth * 2) {
         canvas.width = canvas.clientWidth * 2;
         canvas.height = canvas.clientHeight * 2;
@@ -539,7 +522,6 @@
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
     
-    // Amplitude Calculation
     let sum = 0;
     for (let i = 0; i < dataArray.length; i++) {
       const norm = (dataArray[i] - 128) / 128;
@@ -547,9 +529,8 @@
     }
     ampText.textContent = Math.round(Math.sqrt(sum / dataArray.length) * 100) + '%';
 
-    // Waveform Drawing
     ctx.lineWidth = 3;
-    ctx.strokeStyle = '#94B4C1'; // var(--sky)
+    ctx.strokeStyle = '#94B4C1'; 
     ctx.beginPath();
     const sliceWidth = width * 1.0 / dataArray.length;
     let x = 0;
@@ -777,6 +758,9 @@
     btnTalk.innerHTML = '🎙️ Listening...';
     updateStatus('Listening...');
 
+    // Remove focus from button so spacebar doesn't trigger a secondary click
+    btnTalk.blur();
+
     try {
       const stream = await getMicStream();
       setupVisualizer(stream);
@@ -805,16 +789,36 @@
   btnTalk.addEventListener('pointerup', (e) => { e.preventDefault(); stopPTT(); });
   window.addEventListener('pointerup', () => { if (pttIntent) stopPTT(); });
 
+  // ── FIX: Block Spacebar from scrolling page ──
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && !e.repeat && !pttIntent && document.activeElement.tagName !== 'INPUT') {
-      e.preventDefault(); startPTT();
+    if (e.code === 'Space' || e.key === ' ') {
+      // Allow typing spaces inside the text input
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
+      
+      // Stop the browser from scrolling the window
+      e.preventDefault();
+      
+      if (!e.repeat && !pttIntent) {
+        startPTT();
+      }
     }
-  });
+  }, { passive: false });
+
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' && pttIntent) {
-      e.preventDefault(); stopPTT();
+    if (e.code === 'Space' || e.key === ' ') {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
+      
+      e.preventDefault();
+      
+      if (pttIntent) {
+        stopPTT();
+      }
     }
-  });
+  }, { passive: false });
 
   // ── Manual Input ──
   btnTranslateText.addEventListener('click', () => {
